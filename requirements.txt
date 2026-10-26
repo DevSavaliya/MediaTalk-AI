@@ -1,0 +1,28 @@
+# MediaTalk AI
+
+# Web interface
+streamlit==1.64.0
+websockets==16.1.1
+
+# Configuration and API requests
+python-dotenv==1.2.4
+httpx==0.28.1
+requests==2.34.2
+pydantic==2.14.1
+
+# Media processing and local transcription
+yt-dlp==2026.8.19
+pydub==0.25.1
+faster-whisper==1.2.1
+av==16.1.0
+
+# Alternative transcription backend supported by the project
+openai-whisper==20250625
+
+# Mistral integration and retrieval
+langchain-core==1.6.6
+langchain-text-splitters==1.1.2
+langchain-mistralai==1.1.6
+langchain-chroma==1.1.0
+langchain-huggingface==1.2.2
+sentence-transformers==6.1.0
