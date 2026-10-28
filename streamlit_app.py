@@ -1,5 +1,6 @@
 """Run with the project Python: python -m streamlit run streamlit_app.py."""
 
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -11,6 +12,20 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 st.set_page_config(page_title="MediaTalk AI · Your video workspace", page_icon=":material/video_library:", layout="wide")
 
 from core import ui_workflow as workflow
+from core.public_workflow import PublicWorkspace, MAX_UPLOAD_MB, MAX_QUESTION_CHARS, PublicDemoError
+
+PUBLIC_DEMO = os.getenv("MEDIATALK_PUBLIC_DEMO") == "1"
+if PUBLIC_DEMO:
+    if "_public_workspace" not in st.session_state:
+        st.session_state._public_workspace = PublicWorkspace()
+        # Never import local results into a newly created public session.
+        st.session_state.video_result = None
+        st.session_state.chat_messages = []
+        st.session_state.partial_transcript = ""
+        st.session_state.workspace_error = None
+    workflow = st.session_state._public_workspace
+    st.query_params.pop("video", None)
+    st.query_params.pop("view", None)
 
 for key, value in {"video_result": None, "chat_messages": [], "partial_transcript": "", "workspace_error": None}.items():
     if key not in st.session_state:
@@ -25,7 +40,8 @@ def activate(result):
         st.query_params.pop("video", None)
         st.query_params.pop("view", None)
     else:
-        st.query_params["video"] = result["id"]
+        if not PUBLIC_DEMO:
+            st.query_params["video"] = result["id"]
         try:
             st.session_state.chat_messages = workflow.load_chat(result["id"])
         except (OSError, ValueError):
@@ -38,7 +54,7 @@ def activate(result):
 def safe_error(exc):
     # Only our known user-facing errors may be displayed; never dump API responses.
     from core.mistral_client import MistralAPIError
-    if isinstance(exc, MistralAPIError):
+    if isinstance(exc, (MistralAPIError, PublicDemoError)):
         return str(exc)
     if isinstance(exc, FileNotFoundError):
         return "The file or saved index could not be found. Check the path or process the video again."
@@ -56,19 +72,20 @@ def persist_chat():
 
 
 def remember_view(key):
-    st.query_params["view"] = st.session_state[key]
+    if not PUBLIC_DEMO:
+        st.query_params["view"] = st.session_state[key]
 
 
 # A browser reconnect/reload starts a fresh Session State. Restore the workspace
 # from its URL rather than treating the next chat submission as a new video.
-if st.session_state.video_result is None and st.query_params.get("video"):
+if not PUBLIC_DEMO and st.session_state.video_result is None and st.query_params.get("video"):
     with st.spinner("Restoring your video and conversation…"):
         try:
             video_id = st.query_params["video"]
             activate(workflow.open_cli_video() if video_id == "cli" else workflow.open_video(video_id))
         except Exception as exc:
             st.session_state.workspace_error = safe_error(exc)
-elif st.session_state.video_result is not None:
+elif not PUBLIC_DEMO and st.session_state.video_result is not None:
     st.query_params["video"] = st.session_state.video_result["id"]
 
 
@@ -79,7 +96,7 @@ with st.sidebar:
     if st.button("New video", icon=":material/add:", type="primary", width="stretch", key="new_video"):
         activate(None)
         st.rerun()
-    st.subheader("Your library")
+    st.subheader("This session" if PUBLIC_DEMO else "Your library")
     saved = workflow.list_videos()
     if saved:
         labels = {item["id"]: (item.get("title") or item.get("source_label") or "Untitled video") for item in saved}
@@ -93,7 +110,7 @@ with st.sidebar:
                     st.session_state.workspace_error = safe_error(exc)
     else:
         st.caption("Processed videos will appear here, ready to revisit.")
-    if (workflow.ROOT / "vector_db" / "chroma.sqlite3").is_file():
+    if not PUBLIC_DEMO and (workflow.ROOT / "vector_db" / "chroma.sqlite3").is_file():
         if st.button("Open saved CLI video", icon=":material/history:", width="stretch", key="open_cli"):
             with st.spinner("Loading your existing video index…"):
                 try:
@@ -101,10 +118,24 @@ with st.sidebar:
                     st.rerun()
                 except Exception as exc:
                     st.session_state.workspace_error = safe_error(exc)
+    if PUBLIC_DEMO:
+        st.caption(f"Recording attempts: {workflow.video_attempts}/3 · Question attempts: {workflow.question_attempts}/20")
+        if st.button("Clear session data", icon=":material/delete:", key="clear_session"):
+            workflow.clear()
+            activate(None)
+            st.session_state.workspace_error = None
+            st.session_state._upload_generation = st.session_state.get("_upload_generation", 0) + 1
+            st.session_state.pop("youtube_source", None)
+            st.rerun()
     st.space("large")
     with st.expander("How it works", icon=":material/help_outline:"):
-        st.markdown("**1. Add a video**\n\nPaste a YouTube link, upload media, or choose a local file.\n\n**2. Read the transcript**\n\nFollow transcription and analysis as they run.\n\n**3. Ask your video**\n\nGet answers grounded in its transcript.")
-    st.caption("Files and notes stay on this computer. Transcript text is sent to your configured model for analysis and answers.")
+        sources = "Paste a YouTube link or upload media." if PUBLIC_DEMO else "Paste a YouTube link, upload media, or choose a local file."
+        st.markdown(f"**1. Add a video**\n\n{sources}\n\n**2. Read the transcript**\n\nFollow transcription and analysis as they run.\n\n**3. Ask your video**\n\nGet answers grounded in its transcript.")
+    if PUBLIC_DEMO:
+        st.caption("Your workspace is separate from other visitors. Notes and chats last only for this browser session; refreshing or reconnecting may start a new session. Download anything you want to keep.")
+        st.caption("Media is processed on the demo server. Transcript excerpts and questions go to Mistral; Hinglish audio goes to Sarvam. Use non-sensitive recordings. Temporary media is removed after processing.")
+    else:
+        st.caption("Files and notes stay on this computer. Transcript text is sent to your configured model for analysis and answers.")
 
 with st.container(horizontal=True, horizontal_alignment="distribute", vertical_alignment="center"):
     st.caption("YOUR VIDEO WORKSPACE")
@@ -127,19 +158,26 @@ if st.session_state.video_result is None:
         guide = st.container(width=320)
     with entry, st.container(border=True):
         st.subheader("Start with your video", icon=":material/add_circle_outline:")
-        mode = st.segmented_control("Video source", ["YouTube link", "Upload a file", "Local file"], default="YouTube link", key="source_mode", width="stretch")
+        source_modes = ["YouTube link", "Upload a file"] if PUBLIC_DEMO else ["YouTube link", "Upload a file", "Local file"]
+        mode = st.segmented_control("Video source", source_modes, default="YouTube link", key="source_mode", width="stretch")
+        if mode not in source_modes:
+            st.error("Choose one of the available video sources.")
+            st.stop()
         with st.form("video_form", border=False):
             upload = None
             source = ""
             if mode == "Upload a file":
-                upload = st.file_uploader("Video or audio file", type=[ext[1:] for ext in sorted(workflow.MEDIA_TYPES)], max_upload_size=500, key="media_upload")
+                upload_key = f"media_upload_{st.session_state.get('_upload_generation', 0)}" if PUBLIC_DEMO else "media_upload"
+                upload = st.file_uploader("Video or audio file", type=[ext[1:] for ext in sorted(workflow.MEDIA_TYPES)], max_upload_size=MAX_UPLOAD_MB if PUBLIC_DEMO else 500, key=upload_key)
             elif mode == "Local file":
                 source = st.text_input("Full file path", placeholder=r"D:\Videos\my-recording.mp4", key="local_source")
             else:
                 source = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=…", key="youtube_source")
             language = st.selectbox("Spoken language", ["English", "Hinglish"], key="spoken_language", help="English uses local Whisper. Hinglish uses your configured Sarvam transcription service.")
             submitted = st.form_submit_button("Transcribe & explore", icon=":material/arrow_forward:", type="primary", width="stretch", key="process_video")
-        st.caption("MP4, WEBM, MOV, MKV, AVI, MP3, WAV, M4A or OGG · up to 500 MB per upload")
+        st.caption("MP4, WEBM, MOV, MKV, AVI, MP3, WAV, M4A or OGG · " + ("up to 50 MB and 10 minutes" if PUBLIC_DEMO else "up to 500 MB per upload"))
+        if PUBLIC_DEMO:
+            st.caption("Demo limits: 3 recording attempts and 20 questions per session. Shared hourly limits also apply. YouTube may block cloud downloads; file uploads remain available.")
     with guide:
         st.subheader("From playback to clarity")
         for icon, title, caption in [
@@ -165,7 +203,7 @@ if st.session_state.video_result is None:
             st.error(error)
         else:
             st.session_state.partial_transcript = ""
-            labels = {"audio": "Preparing audio", "transcribing": "Transcribing your video", "indexing": "Saving the searchable transcript", "title": "Finding a title", "summary": "Writing the summary", "details": "Extracting takeaways"}
+            labels = {"audio": "Preparing audio", "transcribing": "Transcribing your video", "indexing": "Indexing the transcript for this session" if PUBLIC_DEMO else "Saving the searchable transcript", "title": "Finding a title", "summary": "Writing the summary", "details": "Extracting takeaways"}
             with st.status("Preparing your video…", expanded=True) as status:
                 transcription_progress = st.empty()
                 def progress(stage, data):
@@ -212,7 +250,7 @@ else:
         conversation = st.container(width=440)
     with reading:
         tab_key = f"video_view_{result['id']}"
-        view = st.query_params.get("view", "Transcript")
+        view = st.session_state.get(tab_key, "Transcript") if PUBLIC_DEMO else st.query_params.get("view", "Transcript")
         if view not in ("Transcript", "Summary", "Takeaways"):
             view = "Transcript"
         transcript_tab, summary_tab, takeaways_tab = st.tabs(
@@ -239,7 +277,7 @@ else:
                 st.session_state.chat_messages = []
                 persist_chat()
                 st.rerun()
-        st.caption("Ask about this video, then follow up. Your conversation is saved with the video.")
+        st.caption("Ask about this video, then follow up. " + ("Your conversation stays in this session." if PUBLIC_DEMO else "Your conversation is saved with the video."))
         if st.session_state.get("chat_save_error"):
             st.warning(st.session_state.chat_save_error)
         messages = st.container(height=420, border=True, autoscroll=True)
@@ -254,7 +292,7 @@ else:
                         st.error(message["content"])
                     else:
                         st.markdown(message["content"])
-        question = st.chat_input("Ask a question about this video…", key=f"question_{result['id']}", max_chars=4000, submit_mode="disable")
+        question = st.chat_input("Ask a question about this video…", key=f"question_{result['id']}", max_chars=MAX_QUESTION_CHARS if PUBLIC_DEMO else 4000, submit_mode="disable")
         if st.session_state.chat_messages and st.session_state.chat_messages[-1]["role"] == "user" and not question:
             st.info("The previous reply was interrupted. You can send the question again.")
         if question:
@@ -274,7 +312,7 @@ else:
                             st.session_state.chat_messages.append({"role": "assistant", "content": answer})
                         except Exception as exc:
                             from core.mistral_client import MistralAPIError
-                            message = str(exc) if isinstance(exc, MistralAPIError) else "The answer could not be generated. Your video is still open; please try again."
+                            message = str(exc) if isinstance(exc, (MistralAPIError, PublicDemoError)) else "The answer could not be generated. Your video is still open; please try again."
                             st.error(message)
                             st.session_state.chat_messages.append({"role": "assistant", "content": message, "error": True})
             persist_chat()

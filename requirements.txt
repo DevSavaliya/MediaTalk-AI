@@ -13,6 +13,7 @@ pydantic==2.14.1
 # Media processing and local transcription
 yt-dlp==2026.8.19
 pydub==0.25.1
+audioop-lts==0.2.2; python_version >= "3.13"
 faster-whisper==1.2.1
 av==16.1.0
 

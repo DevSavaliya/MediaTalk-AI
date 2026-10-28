@@ -1,5 +1,17 @@
 # Video Agent workspace
 
+## Public demo entry point
+
+`streamlit_cloud.py` runs the same interface with isolated visitor sessions. Its
+transcripts, notes, vector indexes, and chats stay in session memory. Local file
+paths, the shared saved CLI database, and shared transcript caching are disabled.
+Refreshing or reconnecting may start an empty session; download notes before
+leaving. **Clear session data** removes that session's workspace data without
+resetting its usage allowance. See [PUBLIC_DEMO.md](PUBLIC_DEMO.md) for limits,
+local preview, and remaining cloud verification.
+
+The instructions below describe the persistent local mode (`streamlit_app.py`).
+
 Automatic source-file watching is disabled to avoid conflicts with Transformers' lazy imports. Restart Streamlit after changing Python files.
 
 Run from the VS Code terminal in `D:\Video Agent`:

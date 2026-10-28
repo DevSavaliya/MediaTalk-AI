@@ -13,7 +13,8 @@ from core.rag_engine import build_rag_chain, load_rag_chain, ask_question
 from core.mistral_client import MistralAPIError
 
 
-def run_pipeline(source: str, language: str = "english", *, on_progress=None, collection_name=None) -> dict:
+def run_pipeline(source: str, language: str = "english", *, on_progress=None, collection_name=None,
+                 prepared_chunks=None, transient=False) -> dict:
     def report(stage, **data):
         if on_progress is not None:
             on_progress(stage, data)
@@ -21,21 +22,27 @@ def run_pipeline(source: str, language: str = "english", *, on_progress=None, co
     print("starting AI Video Assistant")
 
     report("audio")
-    chunks = process_input(source)
+    chunks = process_input(source) if prepared_chunks is None else prepared_chunks
 
     report("transcribing")
-    transcript = transcribe_all(chunks, language, on_progress=lambda data: report("transcribing_progress", **data))
+    transcription_options = {"use_cache": False} if transient else {}
+    transcript = transcribe_all(chunks, language, on_progress=lambda data: report("transcribing_progress", **data),
+                                **transcription_options)
     report("transcript", transcript=transcript)
-    print("\n" + "=" * 60)
-    print("TRANSCRIPTION")
-    print("=" * 60)
-    print(transcript)
-    print("=" * 60 + "\n")
+    if not transient:
+        print("\n" + "=" * 60)
+        print("TRANSCRIPTION")
+        print("=" * 60)
+        print(transcript)
+        print("=" * 60 + "\n")
 
     # Persist the local transcript index before any remote generation can fail.
     report("indexing")
-    rag_chain = (build_rag_chain(transcript, collection_name=collection_name)
-                 if collection_name else build_rag_chain(transcript))
+    if transient:
+        rag_chain = build_rag_chain(transcript, transient=True)
+    else:
+        rag_chain = (build_rag_chain(transcript, collection_name=collection_name)
+                     if collection_name else build_rag_chain(transcript))
 
     result = {
         "title": "Video transcript (title not generated)",

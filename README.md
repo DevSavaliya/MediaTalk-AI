@@ -20,9 +20,9 @@ The intended use cases include reviewing educational videos, recorded discussion
 - Generate a title, summary, action items, key decisions, and open questions.
 - Ask questions using relevant passages retrieved from the transcript.
 - Use recent conversation history for follow-up questions.
-- Reopen saved videos and their conversations.
+- Reopen saved videos and their conversations in local mode.
 - Download transcripts as TXT and notes as Markdown.
-- Reuse cached transcriptions to avoid repeating speech recognition.
+- Reuse cached transcriptions in local mode to avoid repeating speech recognition.
 - Preserve the transcript and searchable index when remote analysis fails.
 
 ## Screenshots
@@ -65,7 +65,7 @@ YouTube link / uploaded media / local file
              Mistral-generated answer
 ```
 
-New videos processed through the Streamlit interface use separate Chroma collections. This keeps retrieval scoped to the selected video.
+New videos processed through the local Streamlit interface use separate Chroma collections. The public-demo entry point uses a separate in-memory vector index for each video, owned by its visitor's session. Both modes retrieve only from the selected video.
 
 ## Product decisions
 
@@ -85,7 +85,7 @@ These decisions demonstrate product-oriented engineering. They are not evidence 
 - **Transcription:** faster-whisper; optional original Whisper backend
 - **Hinglish processing:** Sarvam API
 - **Language model:** Mistral through LangChain
-- **Retrieval:** Chroma and local sentence-transformer embeddings
+- **Retrieval:** Chroma for local persistence; LangChain InMemoryVectorStore for public sessions; local sentence-transformer embeddings in both modes
 - **Embedding model:** all-MiniLM-L6-v2
 - **Media processing:** yt-dlp, pydub, and FFmpeg
 - **Testing:** Python unittest and Streamlit AppTest
@@ -177,6 +177,23 @@ Reopen the saved CLI transcript index:
 
 The legacy CLI uses a shared collection that may contain material from multiple runs. The Streamlit workflow creates a separate collection for each new video.
 
+## Public-demo mode
+
+The separate `streamlit_cloud.py` entry point enables visitor isolation. Preview it locally with:
+
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run streamlit_cloud.py --server.port 8502
+```
+
+- Each browser session owns its videos, notes, chat history, and in-memory search indexes.
+- Server-local file paths and the saved CLI library are unavailable.
+- Inputs are limited to 50 MB and 10 minutes, with 3 recording attempts and 20 question attempts per session.
+- Shared process limits allow 10 recording attempts and 100 question attempts per rolling hour. These are workflow limits, not a guaranteed API spending cap.
+- Transcripts and chats are not saved to the shared local library or transcript cache in this mode. Temporary media is removed after processing, including on handled failures.
+- A new browser session, refresh, disconnect, or server restart may discard the workspace. Download notes before leaving. There are no user accounts or durable private libraries in this demo.
+
+The public mode has passed local automated tests and a manual local preview. For Community Cloud, use `cloud/streamlit_app.py` with **Python 3.12**. Its separate requirements select CPU-only PyTorch and faster-whisper. Linux dependency resolution and wheel availability passed; a hosted installation, resource usage, and provider access still require deployment verification. See [Public demo preparation](PUBLIC_DEMO.md).
+
 ## Validation and performance
 
 Run the automated tests:
@@ -205,9 +222,9 @@ See [Transcription performance](TRANSCRIPTION_PERFORMANCE.md) for methodology an
 - Mistral model access, account quotas, and rate limits can prevent analysis or answers.
 - English speech recognition and embeddings run locally, but transcript content and chat context are sent to Mistral.
 - Hinglish processing sends audio to Sarvam.
-- Transcripts, embeddings, notes, and conversations persist on the machine running the application.
+- Local mode persists transcripts, embeddings, notes, and conversations on the machine running the application. Public-demo mode keeps them in the visitor's session memory.
 - Separate video collections are not user authentication or access control.
-- The current application is intended for local use. Public deployment needs additional work on user isolation, storage, and resource limits.
+- Public deployment must use `cloud/streamlit_app.py` and Python 3.12, with cloud dependencies and credentials configured. A successful hosted deployment has not yet been verified.
 
 ## Planned improvements
 
