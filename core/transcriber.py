@@ -34,7 +34,8 @@ def load_model():
             from faster_whisper import WhisperModel
             # CPU INT8 keeps the same model size while reducing inference cost.
             _model = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8",
-                                  cpu_threads=4, num_workers=1)
+                                  cpu_threads=2 if os.getenv("MEDIATALK_PUBLIC_DEMO") == "1" else 4,
+                                  num_workers=1)
         elif WHISPER_ENGINE == "openai":
             import whisper
             _model = whisper.load_model(WHISPER_MODEL)
@@ -79,7 +80,6 @@ def _send_to_sarvam(piece_path: str) -> str:
 
     if not response.ok:
         print(f"\n❌ Sarvam returned {response.status_code}")
-        print(f"Response body: {response.text}\n")
         response.raise_for_status()
 
     return response.json().get("transcript", "")
@@ -173,7 +173,7 @@ def _write_cache(path, text):
                 pass
 
 
-def transcribe_all(chunks: list, language: str = "english", on_progress=None) -> str:
+def transcribe_all(chunks: list, language: str = "english", on_progress=None, *, use_cache=True) -> str:
 
     full_transcript = []
     started = time.perf_counter()
@@ -192,7 +192,7 @@ def transcribe_all(chunks: list, language: str = "english", on_progress=None) ->
                              "cached": cached, "elapsed": time.perf_counter() - started})
 
         progress(0)
-        path = _cache_path(chunk, language) if os.getenv("TRANSCRIPTION_CACHE", "1") != "0" else None
+        path = _cache_path(chunk, language) if use_cache and os.getenv("TRANSCRIPTION_CACHE", "1") != "0" else None
         text = _read_cache(path) if path else None
         if text is None:
             text = transcribe_chunk(chunk, language=language, on_progress=progress)

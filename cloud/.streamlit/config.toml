@@ -1,0 +1,5 @@
+# Script-level settings override the local-only root server configuration.
+[server]
+address = "0.0.0.0"
+maxUploadSize = 50
+headless = true

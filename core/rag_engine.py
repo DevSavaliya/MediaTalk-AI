@@ -2,7 +2,7 @@ from core.mistral_client import create_llm, invoke_with_retry
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda
-from core.vector_store import build_vector_store, load_vector_store, get_retriever
+from core.vector_store import build_vector_store, build_session_vector_store, load_vector_store, get_retriever
 
 
 def get_llm():
@@ -64,7 +64,9 @@ Transcript context:
     )
 
 
-def build_rag_chain(transcript: str, collection_name=None):
+def build_rag_chain(transcript: str, collection_name=None, *, transient=False):
+    if transient:
+        return _create_rag_chain(build_session_vector_store(transcript))
     store = (build_vector_store(transcript, collection_name=collection_name)
              if collection_name else build_vector_store(transcript))
     return _create_rag_chain(store)

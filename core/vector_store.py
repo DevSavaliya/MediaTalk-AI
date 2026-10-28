@@ -4,6 +4,7 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+from langchain_core.vectorstores import InMemoryVectorStore
 
 CHROMA_DIR = str(Path(__file__).resolve().parents[1] / "vector_db")
 COLLECTION_NAME = "meeting_transcript"
@@ -15,6 +16,16 @@ def get_embeddings():
         model_name = EMBEDDING_MODEL,
         model_kwargs = {"device" : 'cpu'}
     )
+
+def build_session_vector_store(transcript: str):
+    """An unshared, non-persistent index owned by one public visitor's session."""
+    if not transcript.strip():
+        raise ValueError("Cannot build a vector database from an empty transcript.")
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    store = InMemoryVectorStore(get_embeddings())
+    store.add_texts(splitter.split_text(transcript))
+    return store
+
 
 def build_vector_store(transcript: str, collection_name=COLLECTION_NAME) -> Chroma:
     if not transcript.strip():

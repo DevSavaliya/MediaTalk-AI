@@ -1,0 +1,22 @@
+# Streamlit Community Cloud: Python 3.12, CPU inference only.
+# Use one official wheel directly so other packages resolve only from PyPI.
+torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.14.1%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl
+
+streamlit==1.64.0
+websockets==16.1.1
+python-dotenv==1.2.4
+httpx==0.28.1
+requests==2.34.2
+pydantic==2.14.1
+yt-dlp==2026.8.19
+pydub==0.25.1
+faster-whisper==1.2.1
+av==16.1.0
+langchain-core==1.6.6
+langchain-text-splitters==1.1.2
+langchain-mistralai==1.1.6
+langchain-chroma==1.1.0
+langchain-huggingface==1.2.2
+sentence-transformers==6.1.0
+
+# Original Whisper is available through the local root requirements only.
