@@ -8,7 +8,9 @@ python-dotenv==1.2.4
 httpx==0.28.1
 requests==2.34.2
 pydantic==2.14.1
-yt-dlp==2026.8.19
+# YouTube extraction requires the matching EJS scripts and a JavaScript runtime.
+yt-dlp[default]==2026.8.19
+deno==2.9.7
 pydub==0.25.1
 faster-whisper==1.2.1
 av==16.1.0

@@ -44,6 +44,30 @@ class PublicMediaTests(unittest.TestCase):
         expected = "https://www.youtube.com/watch?v=abcdefghijk"
         self.assertEqual(public_media.youtube_url("https://youtu.be/abcdefghijk?list=private&t=20"), expected)
         self.assertEqual(public_media.youtube_url("https://www.youtube.com/shorts/abcdefghijk"), expected)
+        self.assertEqual(public_media.youtube_url("https://www.youtube.com/watch?v=w9lXtKsucu0&list=LL&index=15"),
+                         "https://www.youtube.com/watch?v=w9lXtKsucu0")
+
+    def test_downloader_errors_are_classified_without_exposing_details(self):
+        from yt_dlp.utils import DownloadError
+        cases = [
+            ("Sign in to confirm you're not a bot", "YT_ACCESS"),
+            ("HTTP Error 429", "YT_ACCESS"),
+            ("Private video", "YT_RESTRICTED"),
+            ("Requested format is not available", "YT_FORMAT"),
+            ("HTTP Error 403: Forbidden", "YT_FORBIDDEN"),
+            ("Failed to resolve host", "YT_NETWORK"),
+            ("Unexpected upstream error", "YT_DOWNLOAD"),
+        ]
+        for detail, code in cases:
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as folder:
+                with patch("yt_dlp.YoutubeDL") as downloader:
+                    downloader.return_value.__enter__.return_value.extract_info.side_effect = DownloadError(
+                        detail + " https://private.example/?token=secret")
+                    with self.assertRaises(public_media.PublicDemoError) as caught:
+                        public_media.download_youtube("https://youtu.be/abcdefghijk", folder)
+                    self.assertIn(code, str(caught.exception))
+                    self.assertNotIn("private.example", str(caught.exception))
+                    self.assertNotIn("secret", str(caught.exception))
 
     def test_local_urls_userinfo_and_playlists_rejected(self):
         for source in ["D:/secret.mp4", "file:///etc/passwd", "http://127.0.0.1/video", 

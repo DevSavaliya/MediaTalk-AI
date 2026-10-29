@@ -50,6 +50,22 @@ def _duration(value):
     return duration
 
 
+def _youtube_download_error(error):
+    """Classify known downloader failures without exposing URLs or raw responses."""
+    message = str(error).lower()
+    if any(marker in message for marker in ("confirm you're not a bot", "confirm you’re not a bot", "http error 429")):
+        return "YouTube blocked automated requests from this server (YT_ACCESS). Please upload a file instead."
+    if any(marker in message for marker in ("private video", "video unavailable", "not available in your country", "confirm your age", "members-only")):
+        return "YouTube reports this video is unavailable or requires account access (YT_RESTRICTED). Try an unrestricted video or upload a file."
+    if "requested format is not available" in message:
+        return "YouTube did not expose a supported audio format (YT_FORMAT). Try uploading a file; the server's downloader support may need updating."
+    if "http error 403" in message:
+        return "YouTube refused the download request (YT_FORBIDDEN). Please upload a file instead."
+    if any(marker in message for marker in ("timed out", "failed to resolve", "temporary failure in name resolution", "unable to connect")):
+        return "The server could not connect to YouTube (YT_NETWORK). Try again later or upload a file."
+    return "YouTube could not provide this video (YT_DOWNLOAD). Try uploading a supported file instead."
+
+
 def download_youtube(source, folder):
     import yt_dlp
     started = time.monotonic()
@@ -87,8 +103,10 @@ def download_youtube(source, folder):
         return candidates[0]
     except PublicDemoError:
         raise
+    except yt_dlp.utils.DownloadError as exc:
+        raise PublicDemoError(_youtube_download_error(exc)) from None
     except Exception:
-        raise PublicDemoError("YouTube could not provide this video. Try uploading a supported file instead.") from None
+        raise PublicDemoError("YouTube could not provide this video (YT_DOWNLOAD). Try uploading a supported file instead.") from None
 
 
 def prepare_audio(source, folder):
