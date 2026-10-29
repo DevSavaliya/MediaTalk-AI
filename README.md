@@ -4,7 +4,23 @@ Turn video and audio recordings into searchable transcripts, structured notes, a
 
 MediaTalk AI is a Python and Streamlit application that combines speech recognition, Mistral-powered analysis, and retrieval-augmented generation (RAG). Users can read a transcript or summary, then ask questions about the recording in the same workspace.
 
-**Status:** Local application. Public deployment is planned; no verified public demo is available yet.
+**[Try the live demo](https://dev-mediatalk-ai.streamlit.app/)** · Hosted on Streamlit Community Cloud.
+
+The English file-upload workflow was verified on October 29, 2026: transcription, title, summary, takeaways, and two-turn chat with a contextual follow-up. This was a short sample test, not a load test or a broad accuracy evaluation.
+
+## Try it in your browser
+
+1. Open [MediaTalk AI](https://dev-mediatalk-ai.streamlit.app/).
+2. Select **Upload a file** and choose a non-sensitive recording. Start with a short English MP4, MP3, or WAV.
+3. Select **English**, then click **Transcribe & explore**.
+4. Read the **Transcript**, **Summary**, or **Takeaways**.
+5. Ask a question in **Ask your video**, then ask a follow-up.
+
+The demo accepts recordings up to **50 MB and 10 minutes**. Each session allows **3 recording attempts and 20 question attempts**; failed processing attempts also count, and shared hourly limits apply. Download your notes before leaving: refreshing or reconnecting may discard the session.
+
+**Known limitation:** YouTube downloads returned HTTP 403 on the hosted app during verification. Use **Upload a file** for the public demo. Local YouTube downloading succeeded for the tested video; hosted YouTube support remains unresolved.
+
+Media is processed on the demo server. Transcript excerpts and questions are sent to Mistral; Hinglish audio is sent to Sarvam. Hinglish has not yet been verified on the hosted app.
 
 ## The problem
 
@@ -14,8 +30,8 @@ The intended use cases include reviewing educational videos, recorded discussion
 
 ## Features
 
-- Process YouTube links, uploaded media, or local media paths.
-- Transcribe English audio locally with faster-whisper.
+- Process uploaded media in the public demo; local mode also supports YouTube links and local media paths.
+- Transcribe English audio with faster-whisper on the machine running the app.
 - Process Hinglish audio through Sarvam's speech-to-text translation API.
 - Generate a title, summary, action items, key decisions, and open questions.
 - Ask questions using relevant passages retrieved from the transcript.
@@ -28,7 +44,7 @@ The intended use cases include reviewing educational videos, recorded discussion
 ## Screenshots
 
 ### Home
-Choose a YouTube link, upload media, or provide a local file.
+The local interface offers YouTube links, media uploads, and local file paths. Use media uploads in the public demo.
 
 ![Video input options and saved library](screenshots/home.png)
 
@@ -54,7 +70,8 @@ YouTube link / uploaded media / local file
                     |
                 Transcript
                     |
-       Local embeddings and Chroma index
+         Embeddings and vector index
+       Local: Chroma / Public: in-memory
                     |
         Mistral summary and takeaways
                     |
@@ -192,7 +209,7 @@ The separate `streamlit_cloud.py` entry point enables visitor isolation. Preview
 - Transcripts and chats are not saved to the shared local library or transcript cache in this mode. Temporary media is removed after processing, including on handled failures.
 - A new browser session, refresh, disconnect, or server restart may discard the workspace. Download notes before leaving. There are no user accounts or durable private libraries in this demo.
 
-The public mode has passed local automated tests and a manual local preview. For Community Cloud, use `cloud/streamlit_app.py` with **Python 3.12**. Its separate requirements select CPU-only PyTorch and faster-whisper. Linux dependency resolution and wheel availability passed; a hosted installation, resource usage, and provider access still require deployment verification. See [Public demo preparation](PUBLIC_DEMO.md).
+The public mode has passed local automated tests, a manual local preview, and a hosted English file-upload test through analysis and two-turn chat. For Community Cloud, use `cloud/streamlit_app.py` with **Python 3.12**. Its separate requirements select CPU-only PyTorch and faster-whisper. Hosted resource consumption and concurrent-user capacity have not been measured. See [Public demo verification and limitations](PUBLIC_DEMO.md).
 
 ## Validation and performance
 
@@ -220,15 +237,15 @@ See [Transcription performance](TRANSCRIPTION_PERFORMANCE.md) for methodology an
 - Generated summaries and answers may contain mistakes; check them against the transcript.
 - Questions are answered from the recording, not through independent web fact-checking.
 - Mistral model access, account quotas, and rate limits can prevent analysis or answers.
-- English speech recognition and embeddings run locally, but transcript content and chat context are sent to Mistral.
+- English speech recognition and embeddings run on the machine hosting the app (the cloud server for the public demo), while transcript content and chat context are sent to Mistral.
 - Hinglish processing sends audio to Sarvam.
 - Local mode persists transcripts, embeddings, notes, and conversations on the machine running the application. Public-demo mode keeps them in the visitor's session memory.
 - Separate video collections are not user authentication or access control.
-- Public deployment must use `cloud/streamlit_app.py` and Python 3.12, with cloud dependencies and credentials configured. A successful hosted deployment has not yet been verified.
+- Public deployment uses `cloud/streamlit_app.py` and Python 3.12. The hosted English upload flow is verified for a short sample; YouTube downloads remain blocked, and hosted Hinglish and concurrent-user behavior still need verification.
 
 ## Planned improvements
 
-- Prepare and verify a Streamlit Community Cloud demonstration.
+- Investigate hosted YouTube download restrictions and verify hosted Hinglish processing.
 - Evaluate transcription and answer quality on a broader set of recordings.
 - Improve source references so users can verify answers more easily.
 - Add appropriate access controls and retention options for hosted use.
