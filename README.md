@@ -16,11 +16,11 @@ The English file-upload workflow was verified on October 29, 2026: transcription
 4. Read the **Transcript**, **Summary**, or **Takeaways**.
 5. Ask a question in **Ask your video**, then ask a follow-up.
 
-The demo accepts recordings up to **50 MB and 10 minutes**. Each session allows **3 recording attempts and 20 question attempts**; failed processing attempts also count, and shared hourly limits apply. Download your notes before leaving: refreshing or reconnecting may discard the session.
+The application now allows recordings up to **200 MB and 60 minutes**, processed in roughly five-minute audio chunks. The expanded limit requires deploying this version; a full hour of hosted transcription has not yet been verified. Each session allows **3 recording attempts and 20 question attempts**; failed processing attempts also count, and shared hourly limits apply. Download your notes before leaving: refreshing or reconnecting may discard the session.
 
 **Known limitation:** YouTube downloads returned HTTP 403 on the hosted app during verification. Use **Upload a file** for the public demo. Local YouTube downloading succeeded for the tested video; hosted YouTube support remains unresolved.
 
-Media is processed on the demo server. Transcript excerpts and questions are sent to Mistral; Hinglish audio is sent to Sarvam. Hinglish has not yet been verified on the hosted app.
+Media is processed on the demo server. Transcript excerpts and questions are sent to Mistral; Hinglish audio is sent to Sarvam and translated into English. On November 3, 2026, a controlled 22-second Hindi-English sample passed hosted transcription, summary, and two-turn chat, including questions written in Hinglish. This does not establish accuracy for every accent or recording.
 
 ## The problem
 
@@ -204,7 +204,7 @@ The separate `streamlit_cloud.py` entry point enables visitor isolation. Preview
 
 - Each browser session owns its videos, notes, chat history, and in-memory search indexes.
 - Server-local file paths and the saved CLI library are unavailable.
-- Inputs are limited to 50 MB and 10 minutes, with 3 recording attempts and 20 question attempts per session.
+- Inputs are limited to 200 MB and 60 minutes, with 3 recording attempts and 20 question attempts per session. Audio is split into roughly five-minute chunks before transcription.
 - Shared process limits allow 10 recording attempts and 100 question attempts per rolling hour. These are workflow limits, not a guaranteed API spending cap.
 - Transcripts and chats are not saved to the shared local library or transcript cache in this mode. Temporary media is removed after processing, including on handled failures.
 - A new browser session, refresh, disconnect, or server restart may discard the workspace. Download notes before leaving. There are no user accounts or durable private libraries in this demo.
@@ -241,11 +241,11 @@ See [Transcription performance](TRANSCRIPTION_PERFORMANCE.md) for methodology an
 - Hinglish processing sends audio to Sarvam.
 - Local mode persists transcripts, embeddings, notes, and conversations on the machine running the application. Public-demo mode keeps them in the visitor's session memory.
 - Separate video collections are not user authentication or access control.
-- Public deployment uses `cloud/streamlit_app.py` and Python 3.12. The hosted English upload flow is verified for a short sample; YouTube downloads remain blocked, and hosted Hinglish and concurrent-user behavior still need verification.
+- Public deployment uses `cloud/streamlit_app.py` and Python 3.12. Short English and Hinglish samples passed hosted verification. YouTube downloads, longer hosted recordings, and concurrent-user capacity still require verification.
 
 ## Planned improvements
 
-- Investigate hosted YouTube download restrictions and verify hosted Hinglish processing.
+- Investigate hosted YouTube download restrictions and measure longer hosted recording performance.
 - Evaluate transcription and answer quality on a broader set of recordings.
 - Improve source references so users can verify answers more easily.
 - Add appropriate access controls and retention options for hosted use.

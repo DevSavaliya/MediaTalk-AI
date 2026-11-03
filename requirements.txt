@@ -11,7 +11,8 @@ requests==2.34.2
 pydantic==2.14.1
 
 # Media processing and local transcription
-yt-dlp==2026.8.19
+yt-dlp[default]==2026.10.26
+deno==2.9.7
 pydub==0.25.1
 audioop-lts==0.2.2; python_version >= "3.13"
 faster-whisper==1.2.1

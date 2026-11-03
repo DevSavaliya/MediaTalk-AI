@@ -12,7 +12,7 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 st.set_page_config(page_title="MediaTalk AI · Your video workspace", page_icon=":material/video_library:", layout="wide")
 
 from core import ui_workflow as workflow
-from core.public_workflow import PublicWorkspace, MAX_UPLOAD_MB, MAX_QUESTION_CHARS, PublicDemoError
+from core.public_workflow import PublicWorkspace, MAX_UPLOAD_MB, MAX_SECONDS, MAX_QUESTION_CHARS, PublicDemoError
 
 PUBLIC_DEMO = os.getenv("MEDIATALK_PUBLIC_DEMO") == "1"
 if PUBLIC_DEMO:
@@ -175,8 +175,9 @@ if st.session_state.video_result is None:
                 source = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=…", key="youtube_source")
             language = st.selectbox("Spoken language", ["English", "Hinglish"], key="spoken_language", help="English uses local Whisper. Hinglish uses your configured Sarvam transcription service.")
             submitted = st.form_submit_button("Transcribe & explore", icon=":material/arrow_forward:", type="primary", width="stretch", key="process_video")
-        st.caption("MP4, WEBM, MOV, MKV, AVI, MP3, WAV, M4A or OGG · " + ("up to 50 MB and 10 minutes" if PUBLIC_DEMO else "up to 500 MB per upload"))
+        st.caption("MP4, WEBM, MOV, MKV, AVI, MP3, WAV, M4A or OGG · " + (f"up to {MAX_UPLOAD_MB} MB and {MAX_SECONDS // 60} minutes" if PUBLIC_DEMO else "up to 500 MB per upload"))
         if PUBLIC_DEMO:
+            st.caption("Long recordings take longer to transcribe and analyze. Keep this tab connected until processing finishes.")
             st.caption("Demo limits: 3 recording attempts and 20 questions per session. Shared hourly limits also apply. YouTube may block cloud downloads; file uploads remain available.")
     with guide:
         st.subheader("From playback to clarity")

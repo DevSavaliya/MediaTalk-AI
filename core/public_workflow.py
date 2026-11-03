@@ -118,7 +118,7 @@ class PublicWorkspace:
             raise PublicDemoError("Choose a supported audio or video file.")
         with upload.getbuffer() as data:
             if not 0 < len(data) <= MAX_BYTES:
-                raise PublicDemoError("Choose a non-empty file of at most 50 MB.")
+                raise PublicDemoError(f"Choose a non-empty file of at most {MAX_UPLOAD_MB} MB.")
 
             def prepare(folder):
                 source = Path(folder) / f"source{suffix}"

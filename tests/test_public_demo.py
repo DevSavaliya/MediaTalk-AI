@@ -46,6 +46,81 @@ class PublicMediaTests(unittest.TestCase):
         self.assertEqual(public_media.youtube_url("https://www.youtube.com/shorts/abcdefghijk"), expected)
         self.assertEqual(public_media.youtube_url("https://www.youtube.com/watch?v=w9lXtKsucu0&list=LL&index=15"),
                          "https://www.youtube.com/watch?v=w9lXtKsucu0")
+        self.assertEqual(public_media.youtube_url("https://youtube.com/shorts/tSiiLrgUZtQ?si=test"),
+                         "https://www.youtube.com/watch?v=tSiiLrgUZtQ")
+
+    def test_forbidden_download_uses_one_hls_fallback_and_cleans_partial_files(self):
+        from yt_dlp.utils import DownloadError
+        settings = []
+        def make_downloader(options):
+            settings.append(options)
+            class Downloader:
+                def __enter__(self): return self
+                def __exit__(self, *args): pass
+                def extract_info(self, url, download):
+                    self_path = Path(options['outtmpl'].replace('%(ext)s', 'm4a'))
+                    if len(settings) == 1:
+                        self_path.with_suffix('.part').write_bytes(b'partial')
+                        raise DownloadError('HTTP Error 403: Forbidden')
+                    options['match_filter']({'duration': 17})
+                    self_path.write_bytes(b'complete')
+                    return {'duration': 17}
+            return Downloader()
+        with tempfile.TemporaryDirectory() as folder, patch('yt_dlp.YoutubeDL', side_effect=make_downloader):
+            result_path = public_media.download_youtube('https://youtu.be/abcdefghijk', folder)
+            self.assertEqual(result_path.read_bytes(), b'complete')
+            self.assertEqual(list(Path(folder).iterdir()), [result_path])
+        self.assertEqual(len(settings), 2)
+        self.assertEqual(settings[1]['extractor_args']['youtube']['player_client'], ['web_safari'])
+
+    def test_access_block_is_not_retried(self):
+        from yt_dlp.utils import DownloadError
+        with tempfile.TemporaryDirectory() as folder, patch('yt_dlp.YoutubeDL') as downloader:
+            downloader.return_value.__enter__.return_value.extract_info.side_effect = DownloadError("Sign in to confirm you're not a bot")
+            with self.assertRaisesRegex(public_media.PublicDemoError, 'YT_ACCESS'):
+                public_media.download_youtube('https://youtu.be/abcdefghijk', folder)
+            self.assertEqual(downloader.call_count, 1)
+
+    def test_long_recording_is_split_without_losing_audio(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / 'source.wav'
+            source.write_bytes(recording(3.5).getvalue())
+            with patch.object(public_media, 'AUDIO_CHUNK_SECONDS', 1):
+                paths = public_media.prepare_audio(source, folder)
+            durations = []
+            for path in paths:
+                with wave.open(path) as wav:
+                    durations.append(wav.getnframes() / wav.getframerate())
+            self.assertEqual(len(paths), 4)
+            self.assertAlmostEqual(sum(durations), 3.5, places=3)
+            self.assertLess(max(durations), 1.1)
+
+    def test_hour_boundary_allowed_but_longer_rejected(self):
+        self.assertEqual(public_media._duration(3600), 3600)
+        with self.assertRaisesRegex(public_media.PublicDemoError, '60 minutes'):
+            public_media._duration(3600.1)
+
+    def test_decoded_duration_is_checked_even_when_metadata_understates_it(self):
+        run = public_media.subprocess.run
+        def misleading_probe(args, **kwargs):
+            if args[0] == 'ffprobe':
+                return subprocess.CompletedProcess(args, 0, '{"format":{"duration":"0.5"}}')
+            return run(args, **kwargs)
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / 'source.wav'
+            source.write_bytes(recording(2).getvalue())
+            with patch.object(public_media, 'MAX_SECONDS', 1), patch.object(public_media.subprocess, 'run', side_effect=misleading_probe):
+                with self.assertRaises(public_media.PublicDemoError):
+                    public_media.prepare_audio(source, folder)
+
+    def test_unavailable_fallback_retains_original_forbidden_diagnosis(self):
+        from yt_dlp.utils import DownloadError
+        with tempfile.TemporaryDirectory() as folder, patch('yt_dlp.YoutubeDL') as downloader:
+            downloader.return_value.__enter__.return_value.extract_info.side_effect = [
+                DownloadError('HTTP Error 403'), DownloadError('Requested format is not available')]
+            with self.assertRaisesRegex(public_media.PublicDemoError, 'YT_FORBIDDEN'):
+                public_media.download_youtube('https://youtu.be/abcdefghijk', folder)
+            self.assertEqual(downloader.call_count, 2)
 
     def test_downloader_errors_are_classified_without_exposing_details(self):
         from yt_dlp.utils import DownloadError
@@ -91,13 +166,13 @@ class PublicMediaTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "source.wav"
             source.write_bytes(recording().getvalue())
-            with patch.object(public_media.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, '{"format":{"duration":"601"}}')) as run:
-                with self.assertRaisesRegex(public_media.PublicDemoError, "10 minutes"):
+            with patch.object(public_media.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, '{"format":{"duration":"3601"}}')) as run:
+                with self.assertRaisesRegex(public_media.PublicDemoError, "60 minutes"):
                     public_media.prepare_audio(source, folder)
                 self.assertEqual(run.call_count, 1)
 
     def test_invalid_and_unbounded_durations_rejected(self):
-        for value in [None, "NaN", "inf", -1, 0, 601]:
+        for value in [None, "NaN", "inf", -1, 0, 3601]:
             with self.subTest(value=value), self.assertRaises(public_media.PublicDemoError):
                 public_media._duration(value)
 
@@ -149,7 +224,7 @@ class PublicWorkspaceTests(unittest.TestCase):
 
     def test_oversized_upload_rejected_before_processing(self):
         with patch.object(public_workflow, "MAX_BYTES", 10), patch.object(public_workflow.PublicWorkspace, "_process") as process:
-            with self.assertRaisesRegex(public_media.PublicDemoError, "50 MB"):
+            with self.assertRaisesRegex(public_media.PublicDemoError, "200 MB"):
                 public_workflow.PublicWorkspace().process_upload(recording(), "english")
             process.assert_not_called()
 

@@ -12,8 +12,18 @@ original configuration difference was not established.
 Hosted YouTube downloading remains unresolved: the tested public video returned
 HTTP 403 on the cloud server but downloaded and decoded successfully locally.
 The cloud dependencies now include yt-dlp's matching EJS scripts and Deno.
-Use **Upload a file** for the public demo. Hosted Hinglish and load testing remain
-unverified.
+Use **Upload a file** for the public demo. On November 3, 2026, a synthetic
+21.95-second Hindi-English recording passed hosted translation to English,
+summary generation, and two-turn chat with Hinglish questions. Maya's Thursday
+deadline and its relationship to Friday's launch were correctly retained.
+This is a controlled sample test, not a broad transcription accuracy evaluation.
+
+The next deployment updates yt-dlp to 2026.10.26 and tries one Safari HLS playback
+fallback after a forbidden/unsupported-format response. It does not retry account
+restrictions or bot challenges. Both transports retain duration and size limits,
+and failed-attempt files are removed. The supplied Shorts video downloaded and
+decoded locally with the updated default client; its HLS fallback had no supported
+format. Hosted YouTube success is still **not verified**.
 
 The user confirmed the local processing, two-turn chat, and separate private-window
 checks on October 27, 2026.
@@ -56,8 +66,8 @@ This uses the existing local `.env` for provider credentials. The original
 
 | Limit | Public demo |
 | --- | --- |
-| Uploaded file or downloaded audio | 50 MiB |
-| Recording duration | 10 minutes |
+| Uploaded file or downloaded media | 200 MiB |
+| Recording duration | 60 minutes |
 | Recording attempts per session | 3 |
 | Question attempts per session | 20 |
 | Question length | 2,000 characters |
@@ -79,8 +89,11 @@ remain the authority on spend and availability. Limits are process-local; this
 design is intended for a small single-process portfolio demo, not a scaled service.
 
 Media is probed with a 30-second timeout before decoding. FFmpeg decoding is capped
-at 601 seconds of output and 120 seconds of execution; decoded audio exceeding
-600 seconds is rejected rather than silently summarized as a complete video.
+at 3,601 seconds of output and 300 seconds of execution. Output is segmented into
+roughly five-minute WAV files, and their combined duration is validated. Decoded
+audio exceeding 3,600 seconds is rejected rather than silently summarized as a
+complete recording. Transcription processes one chunk at a time, including the
+existing 25-second Sarvam requests within each Hinglish chunk.
 Only supported media demuxers and local file/pipe protocols are allowed.
 YouTube accepts one canonical video URL, rejects live streams/playlists, checks
 duration before download, and limits transfer size. Socket waits and retries are
@@ -108,7 +121,7 @@ discarding the transcript or chat. Other failures use safe generic messages.
   Other packages resolve from PyPI. Original Whisper and its Linux Triton dependency
   are excluded from the cloud installation; the local fallback remains available.
 - The script-level `cloud/.streamlit/config.toml` overrides the root loopback-only
-  address for hosting and caps uploads at 50 MB. The root configuration still keeps
+  address for hosting and caps uploads at 200 MB. The root configuration still keeps
   local previews on loopback. Theme settings continue to come from the root file.
 - Root `packages.txt` installs FFmpeg. Configure credentials through Community Cloud
   Secrets, never in GitHub. The owner deployed the app and configured its secrets.
@@ -122,11 +135,17 @@ The resolver ran from Windows. Diagnostic output is kept under ignored `artifact
 ## Remaining hosted verification
 
 1. Investigate YouTube's HTTP 403 responses without assuming the exact cause.
-2. Verify Hinglish transcription with Sarvam on the hosted app.
+2. Deploy the expanded limits and test a longer English and Hinglish recording.
 3. Verify two independent visitors concurrently on the hosted app; local isolation
    checks and automated tests do not establish hosted concurrent-user capacity.
 4. Measure memory/CPU usage and test longer recordings and recovery under load.
-   The successful short English sample does not establish those limits.
+   The successful short English/Hinglish samples do not establish those limits.
+
+On November 3, 2026, an actual 3,600-second synthetic WAV was decoded locally into
+12 chunks with all 3,600 seconds preserved (largest chunk: 300.032 seconds).
+This validates conversion and chunk boundaries, **not** hour-long hosted speech
+recognition, analysis quality, latency, or memory consumption. Linux/Python 3.12
+dependency resolution also passed with the updated downloader.
 
 ## Automated verification
 
