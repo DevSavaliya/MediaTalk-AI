@@ -27,7 +27,7 @@ differences. This is not a formal transcription-accuracy evaluation.
   re-upload, restart, or a later-chunk failure. Language/model changes invalidate
   the cache; failures and empty text are not stored.
 - Short WAV recordings are no longer copied into a redundant chunk file.
-  Newly downloaded YouTube audio uses mono 16 kHz for speech recognition.
+  Media conversion uses mono 16 kHz audio for speech recognition.
 - Streamlit displays chunk progress and elapsed time.
 - PyAV is constrained to the tested 16.x decoder API because version 19 is
   incompatible with faster-whisper 1.2.1's audio decoder.

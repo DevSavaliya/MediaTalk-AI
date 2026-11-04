@@ -118,7 +118,7 @@ def main(argv=None):
             print("Opening saved video...")
             rag_chain = load_rag_chain()
         else:
-            source = input("Enter YouTube URL or local file path (or 'chat' for the saved video): ").strip()
+            source = input("Enter a local audio/video file path (or 'chat' for the saved video): ").strip().strip('"')
             if source.lower() == "chat":
                 rag_chain = load_rag_chain()
             else:

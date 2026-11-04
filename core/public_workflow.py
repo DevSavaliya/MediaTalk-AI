@@ -13,7 +13,7 @@ from uuid import uuid4
 from core import ui_workflow
 from utils.public_media import (
     MAX_BYTES, MAX_SECONDS, MAX_UPLOAD_MB, PublicDemoError,
-    download_youtube, prepare_audio, youtube_url,
+    prepare_audio,
 )
 
 MAX_VIDEOS_PER_SESSION = 3
@@ -105,12 +105,6 @@ class PublicWorkspace:
             return result
         finally:
             ui_workflow.PROCESS_LOCK.release()
-
-    def process_video(self, source, language, source_label, on_progress=None):
-        canonical = youtube_url(source)  # No server-local paths, even for forged widgets.
-        return self._process(language, canonical,
-                             lambda folder: prepare_audio(download_youtube(canonical, folder), folder),
-                             on_progress)
 
     def process_upload(self, upload, language, on_progress=None):
         suffix = Path(upload.name).suffix.lower()

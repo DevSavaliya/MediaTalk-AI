@@ -22,6 +22,8 @@ class StreamlitUITests(unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
+        self.media_path = Path(folder.name) / "recording.wav"
+        self.media_path.write_bytes(b"mocked media")
         patch.object(ui_workflow, "CHAT_DIR", Path(folder.name)).start()
         patch.object(ui_workflow, "list_videos", return_value=[]).start()
         self.addCleanup(patch.stopall)
@@ -43,7 +45,9 @@ class StreamlitUITests(unittest.TestCase):
         with patch.object(ui_workflow, "process_video", return_value=sample_result()) as process, \
              patch.object(ui_workflow, "answer_question", return_value="Friday.") as answer:
             at = self.app().run()
-            at.text_input(key="youtube_source").set_value("https://www.youtube.com/watch?v=example")
+            at.session_state["source_mode"] = "Local file"
+            at.run()
+            at.text_input(key="local_source").set_value(str(self.media_path))
             at.button(key="process_video").click().run()
             self.assertFalse(at.exception)
             self.assertEqual(at.session_state["video_result"]["title"], "Friday launch planning")
@@ -67,7 +71,9 @@ class StreamlitUITests(unittest.TestCase):
 
         with patch.object(ui_workflow, "process_video", side_effect=process):
             at = self.app().run()
-            at.text_input(key="youtube_source").set_value("https://youtu.be/example")
+            at.session_state["source_mode"] = "Local file"
+            at.run()
+            at.text_input(key="local_source").set_value(str(self.media_path))
             at.button(key="process_video").click().run()
             self.assertFalse(at.exception)
             self.assertIsNotNone(at.session_state["video_result"])

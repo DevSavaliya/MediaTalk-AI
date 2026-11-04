@@ -2,7 +2,6 @@
 
 import os
 from pathlib import Path
-from urllib.parse import urlparse
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -125,11 +124,10 @@ with st.sidebar:
             activate(None)
             st.session_state.workspace_error = None
             st.session_state._upload_generation = st.session_state.get("_upload_generation", 0) + 1
-            st.session_state.pop("youtube_source", None)
             st.rerun()
     st.space("large")
     with st.expander("How it works", icon=":material/help_outline:"):
-        sources = "Paste a YouTube link or upload media." if PUBLIC_DEMO else "Paste a YouTube link, upload media, or choose a local file."
+        sources = "Upload a video or audio file." if PUBLIC_DEMO else "Upload media or choose a local file."
         st.markdown(f"**1. Add a video**\n\n{sources}\n\n**2. Read the transcript**\n\nFollow transcription and analysis as they run.\n\n**3. Ask your video**\n\nGet answers grounded in its transcript.")
     if PUBLIC_DEMO:
         st.caption("Your workspace is separate from other visitors. Notes and chats last only for this browser session; refreshing or reconnecting may start a new session. Download anything you want to keep.")
@@ -158,8 +156,11 @@ if st.session_state.video_result is None:
         guide = st.container(width=320)
     with entry, st.container(border=True):
         st.subheader("Start with your video", icon=":material/add_circle_outline:")
-        source_modes = ["YouTube link", "Upload a file"] if PUBLIC_DEMO else ["YouTube link", "Upload a file", "Local file"]
-        mode = st.segmented_control("Video source", source_modes, default="YouTube link", key="source_mode", width="stretch")
+        source_modes = ["Upload a file"] if PUBLIC_DEMO else ["Upload a file", "Local file"]
+        # Reset an obsolete selection when an existing session receives an update.
+        if st.session_state.get("source_mode") not in source_modes:
+            st.session_state.source_mode = "Upload a file"
+        mode = "Upload a file" if PUBLIC_DEMO else st.segmented_control("Video source", source_modes, default="Upload a file", key="source_mode", width="stretch")
         if mode not in source_modes:
             st.error("Choose one of the available video sources.")
             st.stop()
@@ -171,14 +172,12 @@ if st.session_state.video_result is None:
                 upload = st.file_uploader("Video or audio file", type=[ext[1:] for ext in sorted(workflow.MEDIA_TYPES)], max_upload_size=MAX_UPLOAD_MB if PUBLIC_DEMO else 500, key=upload_key)
             elif mode == "Local file":
                 source = st.text_input("Full file path", placeholder=r"D:\Videos\my-recording.mp4", key="local_source")
-            else:
-                source = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=…", key="youtube_source")
             language = st.selectbox("Spoken language", ["English", "Hinglish"], key="spoken_language", help="English uses local Whisper. Hinglish uses your configured Sarvam transcription service.")
             submitted = st.form_submit_button("Transcribe & explore", icon=":material/arrow_forward:", type="primary", width="stretch", key="process_video")
         st.caption("MP4, WEBM, MOV, MKV, AVI, MP3, WAV, M4A or OGG · " + (f"up to {MAX_UPLOAD_MB} MB and {MAX_SECONDS // 60} minutes" if PUBLIC_DEMO else "up to 500 MB per upload"))
         if PUBLIC_DEMO:
             st.caption("Long recordings take longer to transcribe and analyze. Keep this tab connected until processing finishes.")
-            st.caption("Demo limits: 3 recording attempts and 20 questions per session. Shared hourly limits also apply. YouTube may block cloud downloads; file uploads remain available.")
+            st.caption("Demo limits: 3 recording attempts and 20 questions per session. Shared hourly limits also apply.")
     with guide:
         st.subheader("From playback to clarity")
         for icon, title, caption in [
@@ -196,10 +195,6 @@ if st.session_state.video_result is None:
             error = "Choose a video or audio file first."
         elif mode == "Local file" and (not source or not Path(source).is_file()):
             error = "Enter the full path to an existing video or audio file."
-        elif mode not in ("Upload a file", "Local file"):
-            parsed = urlparse(source)
-            if parsed.scheme not in ("http", "https") or (parsed.hostname or "").lower() not in {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be"}:
-                error = "Enter a valid YouTube video URL."
         if error:
             st.error(error)
         else:
@@ -222,7 +217,7 @@ if st.session_state.video_result is None:
                     if upload is not None:
                         result = workflow.process_upload(upload, language.lower(), progress)
                     else:
-                        label = Path(source).name if mode == "Local file" else source
+                        label = Path(source).name
                         result = workflow.process_video(source, language.lower(), label, progress)
                     activate(result)
                     status.update(label="Your video workspace is ready", state="complete", expanded=False)

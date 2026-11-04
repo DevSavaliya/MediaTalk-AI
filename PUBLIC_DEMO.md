@@ -9,21 +9,13 @@ answer's context, and both chat turns stayed visible. The earlier hosted Mistral
 HTTP 400 did not recur after the owner updated the cloud secrets; the precise
 original configuration difference was not established.
 
-Hosted YouTube downloading remains unresolved: the tested public video returned
-HTTP 403 on the cloud server but downloaded and decoded successfully locally.
-The cloud dependencies now include yt-dlp's matching EJS scripts and Deno.
-Use **Upload a file** for the public demo. On November 3, 2026, a synthetic
+The public demo accepts **audio/video file uploads**. Local mode and the CLI also
+accept local file paths. Link downloading was removed on November 4, 2026 after
+repeated hosted access failures. On November 3, 2026, a synthetic
 21.95-second Hindi-English recording passed hosted translation to English,
 summary generation, and two-turn chat with Hinglish questions. Maya's Thursday
 deadline and its relationship to Friday's launch were correctly retained.
 This is a controlled sample test, not a broad transcription accuracy evaluation.
-
-The next deployment updates yt-dlp to 2026.10.26 and tries one Safari HLS playback
-fallback after a forbidden/unsupported-format response. It does not retry account
-restrictions or bot challenges. Both transports retain duration and size limits,
-and failed-attempt files are removed. The supplied Shorts video downloaded and
-decoded locally with the updated default client; its HLS fallback had no supported
-format. Hosted YouTube success is still **not verified**.
 
 The user confirmed the local processing, two-turn chat, and separate private-window
 checks on October 27, 2026.
@@ -54,7 +46,7 @@ This uses the existing local `.env` for provider credentials. The original
   workspace. Public mode ignores workspace IDs in the URL.
 - Public mode never saves results to `video_library/`, `video_chats/`, Chroma,
   or the shared transcript cache. The local mode continues to use these locations.
-- Downloaded/uploaded media and the normalized WAV use a per-job temporary folder,
+- Uploaded media and the normalized WAV use a per-job temporary folder,
   removed when processing exits. An abrupt operating-system/process termination
   may prevent that cleanup; this is not a secure-erasure guarantee.
 - Session state is not an authenticated account. Refreshes/reconnections can
@@ -66,7 +58,7 @@ This uses the existing local `.env` for provider credentials. The original
 
 | Limit | Public demo |
 | --- | --- |
-| Uploaded file or downloaded media | 200 MiB |
+| Uploaded file | 200 MiB |
 | Recording duration | 60 minutes |
 | Recording attempts per session | 3 |
 | Question attempts per session | 20 |
@@ -95,11 +87,6 @@ audio exceeding 3,600 seconds is rejected rather than silently summarized as a
 complete recording. Transcription processes one chunk at a time, including the
 existing 25-second Sarvam requests within each Hinglish chunk.
 Only supported media demuxers and local file/pipe protocols are allowed.
-YouTube accepts one canonical video URL, rejects live streams/playlists, checks
-duration before download, and limits transfer size. Socket waits and retries are
-bounded; the download progress hook also checks an elapsed-time allowance. That
-hook is not a strict wall-clock timeout for the entire YouTube extraction process.
-Cloud-hosted YouTube downloads can be blocked upstream; users can upload a file instead.
 
 ## Provider data and errors
 
@@ -134,8 +121,9 @@ The resolver ran from Windows. Diagnostic output is kept under ignored `artifact
 
 ## Remaining hosted verification
 
-1. Investigate YouTube's HTTP 403 responses without assuming the exact cause.
-2. Deploy the expanded limits and test a longer English and Hinglish recording.
+1. Deploy the upload-only interface and verify the upload-to-chat flow.
+2. Complete longer hosted English and Hinglish recording tests. A 12-minute
+   repeated-speech test was started, but its final result was not verified.
 3. Verify two independent visitors concurrently on the hosted app; local isolation
    checks and automated tests do not establish hosted concurrent-user capacity.
 4. Measure memory/CPU usage and test longer recordings and recovery under load.
@@ -145,7 +133,7 @@ On November 3, 2026, an actual 3,600-second synthetic WAV was decoded locally in
 12 chunks with all 3,600 seconds preserved (largest chunk: 300.032 seconds).
 This validates conversion and chunk boundaries, **not** hour-long hosted speech
 recognition, analysis quality, latency, or memory consumption. Linux/Python 3.12
-dependency resolution also passed with the updated downloader.
+dependency resolution also passed for that version.
 
 ## Automated verification
 

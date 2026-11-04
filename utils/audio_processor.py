@@ -1,30 +1,6 @@
-import yt_dlp
+from pathlib import Path
 from pydub import AudioSegment
 import os
-
-DOWNLOAD_DIR = 'downloades'
-os.makedirs(DOWNLOAD_DIR,exist_ok = True)
-
-def download_youtube_audio(url :str) ->str:
-    output_path = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": output_path,
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "wav",
-                "preferredquality": "192",
-            }
-        ],
-        "quiet": True,
-        "postprocessor_args": {"ExtractAudio+ffmpeg_o": ["-ac", "1", "-ar", "16000"]},
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = os.path.splitext(ydl.prepare_filename(info))[0] + ".wav"
-    return filename
-
 
 
 def convert_to_wav(input_path: str) -> str:
@@ -34,7 +10,6 @@ def convert_to_wav(input_path: str) -> str:
     audio = audio.set_channels(1).set_frame_rate(16000) #16khz
     audio.export(output_path, format="wav").close()
     return output_path
-
 
 
 def chunk_audio(wav_path : str , chunk_minutes : int = 10) -> list:
@@ -56,16 +31,18 @@ def chunk_audio(wav_path : str , chunk_minutes : int = 10) -> list:
     
     return chunks
 
-def process_input(source: str) -> list:
-    if source.startswith("http://") or source.startswith("https://"):
-        print("Detected YouTube URL. Downloading audio...")
-        wav_path = download_youtube_audio(source)
-    else:
-        print("Detected local file. Converting to WAV...")
-        wav_path = convert_to_wav(source)
 
+def process_input(source: str) -> list:
+    """Prepare an existing local recording; network URLs are not supported."""
+    source = source.strip().strip('"')
+    if "://" in source:
+        raise ValueError("Links are not supported. Enter a local audio/video file path.")
+    path = Path(source).expanduser()
+    if not path.is_file():
+        raise FileNotFoundError("Choose an existing local audio/video file.")
+    print("Detected local file. Converting to WAV...")
+    wav_path = convert_to_wav(str(path))
     print("Chunking audio...")
     chunks = chunk_audio(wav_path)
     print(f"Audio ready — {len(chunks)} chunk(s) created.")
     return chunks
-

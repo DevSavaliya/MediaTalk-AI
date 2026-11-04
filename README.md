@@ -16,9 +16,9 @@ The English file-upload workflow was verified on October 29, 2026: transcription
 4. Read the **Transcript**, **Summary**, or **Takeaways**.
 5. Ask a question in **Ask your video**, then ask a follow-up.
 
-The application now allows recordings up to **200 MB and 60 minutes**, processed in roughly five-minute audio chunks. The expanded limit requires deploying this version; a full hour of hosted transcription has not yet been verified. Each session allows **3 recording attempts and 20 question attempts**; failed processing attempts also count, and shared hourly limits apply. Download your notes before leaving: refreshing or reconnecting may discard the session.
+The application allows uploaded recordings up to **200 MB and 60 minutes**, processed in roughly five-minute audio chunks. A full hour of hosted transcription has not yet been verified. Each session allows **3 recording attempts and 20 question attempts**; failed processing attempts also count, and shared hourly limits apply. Download your notes before leaving: refreshing or reconnecting may discard the session.
 
-**Known limitation:** YouTube downloads returned HTTP 403 on the hosted app during verification. Use **Upload a file** for the public demo. Local YouTube downloading succeeded for the tested video; hosted YouTube support remains unresolved.
+**Input scope:** Upload an audio or video file in the public demo. The local app and CLI also accept local file paths. Link downloading is not supported.
 
 Media is processed on the demo server. Transcript excerpts and questions are sent to Mistral; Hinglish audio is sent to Sarvam and translated into English. On November 3, 2026, a controlled 22-second Hindi-English sample passed hosted transcription, summary, and two-turn chat, including questions written in Hinglish. This does not establish accuracy for every accent or recording.
 
@@ -30,7 +30,7 @@ The intended use cases include reviewing educational videos, recorded discussion
 
 ## Features
 
-- Process uploaded media in the public demo; local mode also supports YouTube links and local media paths.
+- Process uploaded media in the public demo; local mode also supports local media paths.
 - Transcribe English audio with faster-whisper on the machine running the app.
 - Process Hinglish audio through Sarvam's speech-to-text translation API.
 - Generate a title, summary, action items, key decisions, and open questions.
@@ -44,7 +44,7 @@ The intended use cases include reviewing educational videos, recorded discussion
 ## Screenshots
 
 ### Home
-The local interface offers YouTube links, media uploads, and local file paths. Use media uploads in the public demo.
+The local interface offers media uploads and local file paths. Use media uploads in the public demo.
 
 ![Video input options and saved library](screenshots/home.png)
 
@@ -61,7 +61,7 @@ Review the summary and ask questions about the recording.
 ## How it works
 
 ```text
-YouTube link / uploaded media / local file
+Uploaded media / local file
                     |
           Audio conversion and chunking
                     |
@@ -104,7 +104,7 @@ These decisions demonstrate product-oriented engineering. They are not evidence 
 - **Language model:** Mistral through LangChain
 - **Retrieval:** Chroma for local persistence; LangChain InMemoryVectorStore for public sessions; local sentence-transformer embeddings in both modes
 - **Embedding model:** all-MiniLM-L6-v2
-- **Media processing:** yt-dlp, pydub, and FFmpeg
+- **Media processing:** pydub and FFmpeg
 - **Testing:** Python unittest and Streamlit AppTest
 
 ## Project structure
@@ -169,7 +169,7 @@ Model availability depends on your Mistral account. Never commit `.env` or API k
 
 Open the local URL printed in the terminal.
 
-1. Choose a YouTube link, uploaded file, or local file path.
+1. Upload an audio/video file, or choose a local file path in local mode.
 2. Select English or Hinglish.
 3. Click **Transcribe & explore**.
 4. Read the Transcript, Summary, and Takeaways.
@@ -241,11 +241,11 @@ See [Transcription performance](TRANSCRIPTION_PERFORMANCE.md) for methodology an
 - Hinglish processing sends audio to Sarvam.
 - Local mode persists transcripts, embeddings, notes, and conversations on the machine running the application. Public-demo mode keeps them in the visitor's session memory.
 - Separate video collections are not user authentication or access control.
-- Public deployment uses `cloud/streamlit_app.py` and Python 3.12. Short English and Hinglish samples passed hosted verification. YouTube downloads, longer hosted recordings, and concurrent-user capacity still require verification.
+- Public deployment uses `cloud/streamlit_app.py` and Python 3.12. Short English and Hinglish samples passed hosted verification. Longer hosted recordings and concurrent-user capacity still require verification.
 
 ## Planned improvements
 
-- Investigate hosted YouTube download restrictions and measure longer hosted recording performance.
+- Measure longer hosted recording performance and recovery under load.
 - Evaluate transcription and answer quality on a broader set of recordings.
 - Improve source references so users can verify answers more easily.
 - Add appropriate access controls and retention options for hosted use.

@@ -25,7 +25,7 @@ The original CLI still runs with `python main.py` or `python main.py --chat`.
 
 ## Workflow
 
-1. Choose a YouTube link, upload an audio/video file, or enter a local file path.
+1. Upload an audio/video file, or enter a local file path in local mode.
 2. Select English or Hinglish and click **Transcribe & explore**.
 3. Follow the processing status. The full transcription becomes available before analysis finishes.
 4. Read **Transcript**, **Summary**, and **Takeaways** beside **Ask your video**.
